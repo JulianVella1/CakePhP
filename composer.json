@@ -10,6 +10,8 @@
         "cakephp/cakephp": "^5.0.0",
         "cakephp/migrations": "^4.0.0",
         "cakephp/plugin-installer": "^2.0",
+        "league/oauth2-facebook": "^2.2",
+        "league/oauth2-google": "^4.1",
         "mobiledetect/mobiledetectlib": "^3.74"
     },
     "require-dev": {

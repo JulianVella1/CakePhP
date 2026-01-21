@@ -18,6 +18,10 @@ return function (RouteBuilder $routes): void {
         $builder->connect('/users/ban/*', ['controller' => 'Users', 'action' => 'banUser']);
         $builder->connect('/users/unban/*', ['controller' => 'Users', 'action' => 'unBanUser']);
 
+        // OAuth routes
+        $builder->connect('/oauth/google-callback', ['controller' => 'OAuth', 'action' => 'googleCallback']);
+        $builder->connect('/oauth/facebook-callback', ['controller' => 'OAuth', 'action' => 'facebookCallback']);
+
         // Primary app routes
         $builder->connect('/', ['controller' => 'Pets', 'action' => 'index']);
         $builder->connect('/pets/edit/*', ['controller' => 'Pets', 'action' => 'edit']);

@@ -115,8 +115,12 @@ class Application extends BaseApplication implements AuthenticationServiceProvid
         $csrf = new CsrfProtectionMiddleware(['httponly' => true]);
         // Token check will be skipped when callback returns `true`.
         $csrf->skipCheckCallback(function ($request) {
-            //change from prefix to use scope with json requests in routes so ammended it a bit
-            return $request->is('json');
+            // Skip CSRF for JSON API and OAuth callback posts
+            if ($request->is('json')) {
+                return true;
+            }
+            $path = $request->getPath();
+            return str_starts_with($path, '/oauth/');
         });
 
         // Ensure routing middleware is added to the queue before CSRF protection middleware.
