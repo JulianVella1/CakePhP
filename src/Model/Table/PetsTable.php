@@ -91,9 +91,12 @@ class PetsTable extends Table
             ->notEmptyString('type');
 
         $validator
-            ->scalar('image')
-            ->maxLength('image', 255)
-            ->allowEmptyString('image');
+            ->uploadedFile('upload', [
+                'optional' => true
+            ], 'Please upload a valid image file')
+            ->notEmptyFile('upload', 'Please upload an image file', 'create')
+            ->allowEmptyFile('upload', 'update');
+
 
         return $validator;
     }

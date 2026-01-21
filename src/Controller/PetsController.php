@@ -68,9 +68,9 @@ class PetsController extends AppController
         $pet = $petsTable->newEmptyEntity();
 
         $data = $this->request->getData();
-        $data['user_id'] = $data['user_id'] ?? 1;
+        $data['user_id'] = $data['user_id'] ?? 1; //when user is not autneticated / logged in, defaults to 1
         $data['url'] = strtolower(Text::slug($data['name'] ?? ''));
-        $data['image'] = $data['image'] ?? '';
+        $data['image'] = $this->processImageUpload($this->request->getData('upload'));
 
         $pet = $petsTable->patchEntity($pet, $data);
 
@@ -182,7 +182,7 @@ class PetsController extends AppController
         $petsTable = $this->fetchTable('Pets');
         $pet = $petsTable->find()
             ->where(['Pets.url' => $slug])
-            ->contain(['Users'])
+            ->contain(['Users','Likes'=>['Users']])
             ->first();
 
         if (!$pet) {

@@ -111,14 +111,20 @@ class AppController extends Controller
         return null;
     }
 
-    protected function writeLog(string $level, string $scope, string $msg): void{
+    //https://book.cakephp.org/5/en/core-libraries/logging.html
+    protected function writeLog(string $level, string $scope, string $msg, array $context = []): void{
         //$auth=$this->request->getSession()->read('Auth');
         //$user=$this->getUser();
-        $user = $this->Authentication->getIdentity();
+        $user =$this->Authentication->getIdentity();
 
-        $userId = $user ? $user->get('id') : 'guest';
-        $logmsg = "User: $userId - Scope: $scope - MSG: $msg";
-        Log::write($level, $logmsg,['scope'=>'julian']);
+        $userId =$user?$user->get('id'):'guest';
+        //$logmsg = "User: $userId - Scope: $scope - MSG: $msg";
+        //Log::write($level, $logmsg,['scope'=>'julian']);
+
+        //I know that I am using scope different just I see it clearer this way
+        //Every log will be save in the julian log file
+        $logmsg=['user_id'=>$userId, 'scope'=>$scope]+$context;
+        Log::write($level, 'MSG: '.$msg.' -> '.json_encode($logmsg,JSON_UNESCAPED_SLASHES),['scope'=>'julian']);
 
     }
 

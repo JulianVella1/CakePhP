@@ -5,7 +5,6 @@
 </div>
 
 <?php if (!empty($authUser)): ?>
-    <!-- Add Pet Form -->
     <div class="card mb-4">
         <div class="card-header bg-success text-white">
             <h4 class="mb-0">Add new pet</h4>
@@ -37,8 +36,6 @@
         <p>Please <?= $this->Html->link('login', ['controller' => 'Users', 'action' => 'login'], ['class' => 'alert-link']) ?> to add a pet.</p>
     </div>
 <?php endif; ?>
-
-<!-- Pets Section -->
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h3>Available Pets</h3>
     <span class="badge bg-secondary"><?= count($pets) ?> pets</span>
@@ -50,7 +47,7 @@
 
                 <?php if (!empty($p->image)): ?>
                     <img src="<?= $this->Url->image('pets/' . $p->image) ?>"
-                         class="card-img-top" style="height: 200px; object-fit: cover;">
+                        class="card-img-top" style="height: 200px; object-fit: cover;">
                 <?php else: ?>
                     <div class="bg-light d-flex align-items-center justify-content-center" style="height: 200px;">
                         <span class="text-muted">No photo</span>
@@ -64,13 +61,28 @@
                     </div>
                     <p class="card-text small text-muted">
                         <?= h($p->user->first_name . ' ' . $p->user->last_name) ?><br>
-                        <?= $p->created->format('M j, Y') ?>
+                        <!--https://book.cakephp.org/5/en/core-libraries/time.html
+                          This is the closest using cakephp format, the only way to get it to exact format is using php date function
+                          Will comment the cakephp way and leave the php way active
+                          <strong>Created:</strong> <?php // h($pet->created->i18nFormat(' dd MMMM yyyy HH:mm'))?>
+                      https://stackoverflow.com/questions/77592196/formatting-php-date-function-to-properly-work-with-1st-2nd-3rd-4th-and-so-->
+                        <?= h($p->created->format('jS F Y H:i')) ?>
                     </p>
 
                     <?php $likeCount = !empty($p->likes) ? count($p->likes) : 0; ?>
                     <p class="mb-0">
                         <span class="badge bg-danger"> <?= $likeCount ?> likes</span>
                     </p>
+                    <?php if (!empty($p->likes)) : ?>
+                        <p><strong>Liked by:</strong></p>
+                        <ul>
+                            <?php foreach ($p->likes as $like) : ?>
+                                <li>
+                                    <?= h($like->user->first_name . ' ' . $like->user->last_name) ?>
+                                </li>
+                            <?php endforeach; ?>
+                        </ul>
+                    <?php endif; ?>
                 </div>
 
                 <div class="card-footer bg-light">
