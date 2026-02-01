@@ -9,146 +9,96 @@ class OAuthController extends AppController
     public function initialize(): void
     {
         parent::initialize();
-        $this->Authentication->allowUnauthenticatedActions(['googleCallback', 'facebookCallback']);
+        $this->Authentication->addUnauthenticatedActions(['googleCallback', 'facebookCallback']);
     }
 
-    /**
-     * Handle Google Firebase callback
-     */
     public function googleCallback()
     {
-        if ($this->request->is('post')) {
-            $data = $this->request->getData();
-            $idToken = $data['idToken'] ?? null;
+        $this->autoRender = false; // Disable view rendering
 
-            if (!$idToken) {
-                 return $this->response
-                    ->withType('application/json')
-                    ->withStatus(400)
-                    ->withStringBody(json_encode(['error' => 'No token provided']));
-            }
+        try {
+            if ($this->request->is('post')) {
+                $data = $this->request->getData();
+                $idToken = $data['idToken'] ?? null;
 
-            $usersTable = $this->fetchTable('Users');
-
-            // Get user data from Firebase token (in real app, you'd verify this server-side)
-            $firebaseUser = $data['user'] ?? null;
-
-            if (!$firebaseUser) {
-                 return $this->response
-                    ->withType('application/json')
-                    ->withStatus(400)
-                    ->withStringBody(json_encode(['error' => 'Invalid user data']));
-            }
-
-            // Find or create user
-            $user = $usersTable->find()
-                ->where(['email' => $firebaseUser['email']])
-                ->first();
-
-            if (!$user) {
-                $user = $usersTable->newEmptyEntity();
-                $user->email = $firebaseUser['email'];
-                $user->first_name = $firebaseUser['firstName'] ?? 'User';
-                $user->last_name = $firebaseUser['lastName'] ?? '';
-                $user->google_id = $firebaseUser['uid'];
-                $user->role = 'user';
-                $user->is_banned = 0;
-                $user->password = bin2hex(random_bytes(16)); // Random password for OAuth users
-
-                if (!$usersTable->save($user)) {
-                    return $this->response
+                if (!$idToken) {
+                     return $this->response
                         ->withType('application/json')
-                        ->withStatus(500)
-                        ->withStringBody(json_encode(['error' => 'Failed to create user']));
+                        ->withStatus(400)
+                        ->withStringBody(json_encode(['error' => 'No token provided']));
                 }
-            } else {
-                // Update google_id if not set
-                if (!$user->google_id) {
+
+                $usersTable = $this->fetchTable('Users');
+                $firebaseUser = $data['user'] ?? null;
+
+                if (!$firebaseUser) {
+                     return $this->response
+                        ->withType('application/json')
+                        ->withStatus(400)
+                        ->withStringBody(json_encode(['error' => 'Invalid user data']));
+                }
+                $user = $usersTable->find()
+                    ->where(['email' => $firebaseUser['email']])
+                    ->first();
+
+                if (!$user) {
+                    $user = $usersTable->newEmptyEntity();
+                    $user->email = $firebaseUser['email'];
+                    $user->first_name = $firebaseUser['firstName'] ?? 'User';
+                    $user->last_name = $firebaseUser['lastName'] ?? '';
                     $user->google_id = $firebaseUser['uid'];
-                    $usersTable->save($user);
+                    $user->role = 'user';
+                    $user->is_banned = 0;
+                    //small issue due to required passwird, it seems that auth plugins dont provide password so I have to generate a random one
+                    // https://www.php.net/manual/en/function.random-bytes.php
+                    //need to test
+                    $user->password = bin2hex(random_bytes(16));
+
+                    // Issue due to validation rules, skipping validation when user going trough auth
+                    //Used some AI to assist with the skip
+                    if (!$usersTable->save($user, ['checkRules' => true, 'validate' => false])) {
+                        return $this->response
+                            ->withType('application/json')
+                            ->withStatus(500)
+                            ->withStringBody(json_encode(['error' => 'Failed to create user', 'details' => $user->getErrors()]));
+                    }
+                } else {
+                    if (!$user->google_id) {
+                        $user->google_id = $firebaseUser['uid'];
+                        $usersTable->save($user);
+                    }
                 }
+
+                $this->writeLog('info', 'user_login_google', 'User logged in via Google', ['user_id' => $user->id, 'email' => $user->email]);
+                $this->Authentication->setIdentity($user);
+
+                // Use Router to get correct redirect URL including subfolder
+                $redirectUrl = \Cake\Routing\Router::url(['controller' => 'Pets', 'action' => 'index'], true);
+
+                return $this->response
+                    ->withType('application/json')
+                    ->withStatus(200)
+                    ->withStringBody(json_encode(['success' => true, 'redirect' => $redirectUrl]));
             }
-
-            // Log the login
-            $this->writeLog('info', 'user_login_google', 'User logged in via Google', ['user_id' => $user->id, 'email' => $user->email]);
-
-            // Set session and redirect
-            $this->Authentication->setIdentity($user);
 
             return $this->response
                 ->withType('application/json')
-                ->withStatus(200)
-                ->withStringBody(json_encode(['success' => true, 'redirect' => '/pets']));
-        }
+                ->withStatus(405)
+                ->withStringBody(json_encode(['error' => 'Method not allowed']));
 
-        return $this->response
-            ->withType('application/json')
-            ->withStatus(405)
-            ->withStringBody(json_encode(['error' => 'Method not allowed']));
+        } catch (\Exception $e) {
+            return $this->response
+                ->withType('application/json')
+                ->withStatus(500)
+                ->withStringBody(json_encode(['error' => 'Server error', 'message' => $e->getMessage()]));
+        }
     }
 
-    /**
-     * Handle Facebook callback
-     */
+
     public function facebookCallback()
     {
-        if ($this->request->is('post')) {
-            $data = $this->request->getData();
-            $facebookUser = $data['user'] ?? null;
-
-            if (!$facebookUser) {
-                 return $this->response
-                    ->withType('application/json')
-                    ->withStatus(400)
-                    ->withStringBody(json_encode(['error' => 'Invalid user data']));
-            }
-
-            $usersTable = $this->fetchTable('Users');
-
-            // Find or create user
-            $user = $usersTable->find()
-                ->where(['email' => $facebookUser['email']])
-                ->first();
-
-            if (!$user) {
-                $user = $usersTable->newEmptyEntity();
-                $user->email = $facebookUser['email'];
-                $user->first_name = $facebookUser['firstName'] ?? 'User';
-                $user->last_name = $facebookUser['lastName'] ?? '';
-                $user->facebook_id = $facebookUser['uid'];
-                $user->role = 'user';
-                $user->is_banned = 0;
-                $user->password = bin2hex(random_bytes(16)); // Random password for OAuth users
-
-                if (!$usersTable->save($user)) {
-                    return $this->response
-                        ->withType('application/json')
-                        ->withStatus(500)
-                        ->withStringBody(json_encode(['error' => 'Failed to create user']));
-                }
-            } else {
-                // Update facebook_id if not set
-                if (!$user->facebook_id) {
-                    $user->facebook_id = $facebookUser['uid'];
-                    $usersTable->save($user);
-                }
-            }
-
-            // Log the login
-            $this->writeLog('info', 'user_login_facebook', 'User logged in via Facebook', ['user_id' => $user->id, 'email' => $user->email]);
-
-            // Set session and redirect
-            $this->Authentication->setIdentity($user);
-
-            return $this->response
-                ->withType('application/json')
-                ->withStatus(200)
-                ->withStringBody(json_encode(['success' => true, 'redirect' => '/pets']));
-        }
-
-        return $this->response
-            ->withType('application/json')
-            ->withStatus(405)
-            ->withStringBody(json_encode(['error' => 'Method not allowed']));
+        //really tried to do facebook but cannot get my account approved
+        // https://developers.facebook.com/async/registration/dialog/?src=default
     }
+
 }

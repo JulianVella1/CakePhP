@@ -19,8 +19,10 @@ return function (RouteBuilder $routes): void {
         $builder->connect('/users/unban/*', ['controller' => 'Users', 'action' => 'unBanUser']);
 
         // OAuth routes
-        $builder->connect('/oauth/google-callback', ['controller' => 'OAuth', 'action' => 'googleCallback']);
-        $builder->connect('/oauth/facebook-callback', ['controller' => 'OAuth', 'action' => 'facebookCallback']);
+        $builder->connect('/oauth/google-callback', ['controller' => 'OAuth', 'action' => 'googleCallback'])
+            ->setMethods(['POST']);
+        $builder->connect('/oauth/facebook-callback', ['controller' => 'OAuth', 'action' => 'facebookCallback'])
+            ->setMethods(['POST']);
 
         // Primary app routes
         $builder->connect('/', ['controller' => 'Pets', 'action' => 'index']);

@@ -53,6 +53,9 @@ $cakeDescription = 'CakePHP: the rapid development php framework';
                                 <?= $this->Html->link('My Pets', '/my-pets', ['class' => 'nav-link']) ?>
                             <?php endif; ?>
                         </li>
+                        <li class="nav-item d-flex align-items-center me-3">
+                            <span class="text-light"><small><?= h($authUser['email']) ?></small></span>
+                        </li>
                         <li class="nav-item">
                             <?= $this->Form->postLink('Logout', ['controller' => 'Users', 'action' => 'logout'], ['class' => 'nav-link', 'confirm' => 'Are you sure you want to logout?']) ?>
                         </li>

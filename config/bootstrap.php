@@ -97,6 +97,13 @@ if (file_exists(CONFIG . 'app_local.php')) {
 }
 
 /*
+ * Load Firebase configuration
+ */
+if (file_exists(CONFIG . 'firebase.php')) {
+    Configure::load('firebase', 'default');
+}
+
+/*
  * When debug = true the metadata cache should only last
  * for a short time.
  */

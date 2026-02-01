@@ -40,6 +40,8 @@ class User extends Entity
         'confirm_password' => true, // Personal opinion but I do like a confirmation field for password
         'role' => true,
         'is_banned' => true,
+        'google_id' => true,
+        'facebook_id' => true,
         'created' => true,
         'modified' => true,
         'likes' => true,
