@@ -115,17 +115,21 @@ class AppController extends Controller
     protected function writeLog(string $level, string $scope, string $msg, array $context = []): void{
         //$auth=$this->request->getSession()->read('Auth');
         //$user=$this->getUser();
-        $user =$this->Authentication->getIdentity();
+        $user = $this->Authentication->getIdentity();
+        $ip = $this->request->clientIp();
+        $time = date('Y-m-d H:i:s');
 
-        $userId =$user?$user->get('id'):'guest';
+        $userId = $context['user_id'] ?? ($user ? $user->get('id') : 'guest');
+        $userEmail = $context['user_email'] ?? ($user ? $user->get('email') : 'guest');
+        unset($context['user_id'], $context['user_email']);
+
         //$logmsg = "User: $userId - Scope: $scope - MSG: $msg";
         //Log::write($level, $logmsg,['scope'=>'julian']);
 
         //I know that I am using scope different just I see it clearer this way
         //Every log will be save in the julian log file
-        $logmsg=['user_id'=>$userId, 'scope'=>$scope]+$context;
-        Log::write($level, 'MSG: '.$msg.' -> '.json_encode($logmsg,JSON_UNESCAPED_SLASHES),['scope'=>'julian']);
-
+        $logmsg = ['time' => $time, 'ip' => $ip, 'user_id' => $userId, 'user_email' => $userEmail, 'scope' => $scope] + $context;
+        Log::write($level, 'MSG: ' . $msg . ' -> ' . json_encode($logmsg, JSON_UNESCAPED_SLASHES), ['scope' => 'julian']);
     }
 
 

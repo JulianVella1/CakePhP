@@ -115,7 +115,7 @@ class PetsController extends AppController
         $this->set(compact('pet'));
     }
 
-    //Used AI on this as I was having trouble with file uploads
+    //Used AI assistance on this as I was having trouble with file uploads
     protected function processImageUpload($file, ?string $currentImage = null): ?string
     {
         if (!$file || !$file->getSize()) {

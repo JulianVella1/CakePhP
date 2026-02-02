@@ -2,7 +2,7 @@
 
 namespace App\Controller;
 
-use Cake\Http\Response;
+use Cake\Routing\Router;
 
 class OAuthController extends AppController
 {
@@ -16,82 +16,82 @@ class OAuthController extends AppController
     {
         $this->autoRender = false; // Disable view rendering
 
-        try {
-            if ($this->request->is('post')) {
-                $data = $this->request->getData();
-                $idToken = $data['idToken'] ?? null;
-
-                if (!$idToken) {
-                     return $this->response
-                        ->withType('application/json')
-                        ->withStatus(400)
-                        ->withStringBody(json_encode(['error' => 'No token provided']));
-                }
-
-                $usersTable = $this->fetchTable('Users');
-                $firebaseUser = $data['user'] ?? null;
-
-                if (!$firebaseUser) {
-                     return $this->response
-                        ->withType('application/json')
-                        ->withStatus(400)
-                        ->withStringBody(json_encode(['error' => 'Invalid user data']));
-                }
-                $user = $usersTable->find()
-                    ->where(['email' => $firebaseUser['email']])
-                    ->first();
-
-                if (!$user) {
-                    $user = $usersTable->newEmptyEntity();
-                    $user->email = $firebaseUser['email'];
-                    $user->first_name = $firebaseUser['firstName'] ?? 'User';
-                    $user->last_name = $firebaseUser['lastName'] ?? '';
-                    $user->google_id = $firebaseUser['uid'];
-                    $user->role = 'user';
-                    $user->is_banned = 0;
-                    //small issue due to required passwird, it seems that auth plugins dont provide password so I have to generate a random one
-                    // https://www.php.net/manual/en/function.random-bytes.php
-                    //need to test
-                    $user->password = bin2hex(random_bytes(16));
-
-                    // Issue due to validation rules, skipping validation when user going trough auth
-                    //Used some AI to assist with the skip
-                    if (!$usersTable->save($user, ['checkRules' => true, 'validate' => false])) {
-                        return $this->response
-                            ->withType('application/json')
-                            ->withStatus(500)
-                            ->withStringBody(json_encode(['error' => 'Failed to create user', 'details' => $user->getErrors()]));
-                    }
-                } else {
-                    if (!$user->google_id) {
-                        $user->google_id = $firebaseUser['uid'];
-                        $usersTable->save($user);
-                    }
-                }
-
-                $this->writeLog('info', 'user_login_google', 'User logged in via Google', ['user_id' => $user->id, 'email' => $user->email]);
-                $this->Authentication->setIdentity($user);
-
-                // Use Router to get correct redirect URL including subfolder
-                $redirectUrl = \Cake\Routing\Router::url(['controller' => 'Pets', 'action' => 'index'], true);
-
-                return $this->response
-                    ->withType('application/json')
-                    ->withStatus(200)
-                    ->withStringBody(json_encode(['success' => true, 'redirect' => $redirectUrl]));
-            }
-
-            return $this->response
-                ->withType('application/json')
-                ->withStatus(405)
-                ->withStringBody(json_encode(['error' => 'Method not allowed']));
-
-        } catch (\Exception $e) {
-            return $this->response
-                ->withType('application/json')
-                ->withStatus(500)
-                ->withStringBody(json_encode(['error' => 'Server error', 'message' => $e->getMessage()]));
+        if (!$this->request->is('post')) {
+            return $this->jsonResponse(['error' => 'Method not allowed'], 405);
         }
+
+        $data = (array)$this->request->getData();
+        $idToken = $data['idToken'] ?? null;
+
+        if (!$idToken) {
+            return $this->jsonResponse(['error' => 'No token provided'], 400);
+        }
+
+        $firebaseUser = $data['user'] ?? null;
+        if (!$firebaseUser) {
+            return $this->jsonResponse(['error' => 'Invalid user data'], 400);
+        }
+
+        $user = $this->getOrCreateGoogleUser($firebaseUser);
+        if (!$user) {
+            return $this->jsonResponse(['error' => 'Failed to create user'], 500);
+        }
+
+        if ($user->is_banned == 1) {
+            $this->writeLog('warning', 'user_banned_login_attempt', 'User banned (google auth)', ['user_id' => $user->id, 'user_email' => $user->email]);
+            return $this->jsonResponse(['error' => 'Your have been banned, please contact support'], 403);
+        }
+
+        $this->writeLog('info', 'user_login_google', 'User logged in via Google', ['user_id' => $user->id, 'user_email' => $user->email]);
+        $this->Authentication->setIdentity($user);
+
+        $redirectUrl = Router::url(['controller' => 'Pets', 'action' => 'index'], true);
+
+        return $this->jsonResponse(['success' => true, 'redirect' => $redirectUrl]);
+    }
+
+    private function getOrCreateGoogleUser(array $firebaseUser)
+    {
+        $usersTable = $this->fetchTable('Users');
+        $user = $usersTable->find()
+            ->where(['email' => $firebaseUser['email']])
+            ->first();
+
+        if ($user) {
+            if (!$user->google_id) {
+                $user->google_id = $firebaseUser['uid'];
+                $usersTable->save($user);
+            }
+            return $user;
+        }
+
+        $user = $usersTable->newEmptyEntity();
+        $user->email = $firebaseUser['email'];
+        $user->first_name = $firebaseUser['firstName'] ?? 'User';
+        $user->last_name = $firebaseUser['lastName'] ?? '';
+        $user->google_id = $firebaseUser['uid'];
+        $user->role = 'user';
+        $user->is_banned = 0;
+        //small issue due to required passwird, it seems that auth plugins dont provide password so I have to generate a random one
+        // https://www.php.net/manual/en/function.random-bytes.php
+        //need to test - done
+        $user->password = bin2hex(random_bytes(16));
+
+        // Issue due to validation rules, skipping validation when user going trough auth
+        //Used some AI to assist with the skip -> line below
+        if (!$usersTable->save($user, ['checkRules' => true, 'validate' => false])) {
+            return null;
+        }
+
+        return $user;
+    }
+
+    private function jsonResponse(array $body, int $status = 200)
+    {
+        return $this->response
+            ->withType('application/json')
+            ->withStatus($status)
+            ->withStringBody(json_encode($body));
     }
 
 

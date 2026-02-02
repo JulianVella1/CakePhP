@@ -76,10 +76,9 @@ $cakeDescription = 'CakePHP: the rapid development php framework';
             <div class="row">
                 <div class="col-md-6">
                     <h6>Purrfect</h6>
-                    <small>Helping pets find their forever homes</small>
                 </div>
                 <div class="col-md-6 text-md-end">
-                    <small>&copy; <?= date('Y') ?> Purrfect Pet Adoption</small><br>
+                    <small>Purrfect Pet Adoption</small><br>
                 </div>
             </div>
         </div>
